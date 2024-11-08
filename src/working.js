@@ -115,7 +115,7 @@ const App = () => {
   const positions = [
     { rotate: '0deg', top: '20px', left: '47.5%' }, // Center top
     { rotate: '0deg', top: '150px', left: '60%' }, // 45° clockwise
-    { rotate: '0deg', top: '150px', left: '25%' }, // 45° counterclockwise
+    { rotate: '0deg', top: '150px', left: '30%' }, // 45° counterclockwise
   ];
 
   return (

@@ -61,15 +61,16 @@ img {
   .wheel-item{
     position: absolute;
     color: #fff;
-    text-transform: capitalize;
+    /* text-transform: capitalize; */
     font-family: sans-serif;
     border: 5px solid lime;
     height: fit-content;
     z-index: 111;
     width: max-content;
-    width: 250px;
+    width: 270px;
     font-size: 1.5rem;
   }
   span{
     border: 5px solid red;
+    text-transform: capitalize;
   }

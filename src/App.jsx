@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useDrag } from 'react-use-gesture';
 import Matter from 'matter-js';
+import gsap from 'gsap';
 
 const App = () => {
   let arr = [
@@ -15,22 +16,22 @@ const App = () => {
   ];
 
   const wheelRef = useRef(null);
-  const [intensity, setIntensity] = useState(0); // Rotation intensity (no longer used for item selection)
-  const [inertia, setInertia] = useState(0); // Track inertia
-  const [showItems, setShowItems] = useState(false); // State to control when to update items
-  const [isMoving, setIsMoving] = useState(false); // Track if the wheel is moving
+  const [intensity, setIntensity] = useState(0);
+  const [inertia, setInertia] = useState(0);
+  const [showItems, setShowItems] = useState(false);
+  const [isMoving, setIsMoving] = useState(false);
   const engineRef = useRef(null);
   const wheelBodyRef = useRef(null);
   const animationFrameId = useRef(null);
+  const itemsRefs = useRef([]); // References for GSAP animations
 
   useEffect(() => {
-    // Initialize Matter.js engine
     engineRef.current = Matter.Engine.create();
     const engine = engineRef.current;
 
     wheelBodyRef.current = Matter.Bodies.circle(0, 0, 100, {
-      inertia: 1000, // High inertia to simulate real wheel spin
-      frictionAir: 0.02, // Air friction to slow down the wheel gradually
+      inertia: 1000,
+      frictionAir: 0.02,
     });
 
     Matter.World.add(engine.world, wheelBodyRef.current);
@@ -49,23 +50,20 @@ const App = () => {
   const bind = useDrag(
     ({ down, velocity, direction: [dx] }) => {
       if (down) {
-        // When dragging, set the wheel to be moving and hide items
         setIsMoving(true);
       } else {
-        // Once drag ends, calculate inertia and show updated items based on it
-        const currentInertia = Math.abs(wheelBodyRef.current.angularVelocity) * 10;
+        const currentInertia = parseInt((Math.abs(wheelBodyRef.current.angularVelocity) * 100) % 8);
         setInertia(currentInertia);
-        setShowItems(true); // Show items when the wheel stops
-        setIsMoving(false); // Reset moving state
+        setShowItems(true);
+        setIsMoving(false);
       }
 
-      // Adjust multiplier for smoother movement and prevent fast spinning
-      const scaleFactor = 0.2; // Decrease this value to make the spin slower
-      const angularVelocity = velocity * dx * scaleFactor; // Apply drag velocity as angular velocity
+      const scaleFactor = 0.2;
+      const angularVelocity = velocity * dx * scaleFactor;
       Matter.Body.setAngularVelocity(wheelBodyRef.current, angularVelocity);
     },
     {
-      axis: 'x', // Constrain drag to the x-axis
+      axis: 'x',
       preventDefault: true,
     }
   );
@@ -78,7 +76,6 @@ const App = () => {
       const angle = wheelBodyRef.current.angle;
       const degrees = (angle * 180) / Math.PI;
 
-      // Apply rotation to the wheel element in the DOM
       wheelElement.style.transform = `rotate(${degrees}deg)`;
 
       animationFrameId.current = requestAnimationFrame(updateRotation);
@@ -91,17 +88,69 @@ const App = () => {
     };
   }, []);
 
-  // Determine which set of 3 items to show based on inertia
-  const itemsToShow = showItems
-    ? arr.slice(Math.floor(inertia * 3) % arr.length, Math.floor(inertia * 3) % arr.length + 3)
-    : []; // Default to no items while moving
-
-  // Positions for each item (center top, 45°, -45°)
-  const positions = [
-    { rotate: '0deg', top: '20px', left: '41%' , al : "center"}, // Center top
-    { rotate: '0deg', top: '150px', left: '62.5%', al : "left" }, // 45° clockwise
-    { rotate: '0deg', top: '150px', left: '22.5%', al : "right" }, // 45° counterclockwise
+  const startIndex = Math.floor(inertia) % arr.length;
+  const itemsToShow = [
+    ...arr.slice(startIndex, startIndex + 3),
+    ...arr.slice(0, Math.max(0, startIndex + 3 - arr.length))
   ];
+
+  const positions = [
+    { rotate: '0deg', top: '50px', left: '41%', al: "center" },
+    { rotate: '0deg', top: '150px', left: '62.5%', al: "left" },
+    { rotate: '0deg', top: '150px', left: '22.5%', al: "right" },
+  ];
+
+  // Trigger GSAP animation when items appear with unique animations per item
+  useEffect(() => {
+    if (showItems && !isMoving) {
+      itemsRefs.current.forEach((item, index) => {
+        if (!item) return;
+        
+        // Apply different animations based on the item index
+        switch(index) {
+          case 0:
+            gsap.from(item, {
+              y: 250,
+              x:0,
+              opacity: 0,
+              scale: 1,
+              duration: 0.9,
+              ease: "expo.out"
+            });
+            break;
+          case 1:
+            gsap.from(item, {
+              y: 100,
+              x:-150,
+              opacity: 0,
+              scale: 1,
+              duration: 0.9,
+              ease: "expo.out"
+            });
+            break;
+            case 2:
+              gsap.from(item, {
+                y: 100,
+              x:150,
+              opacity: 0,
+              scale: 1,
+              duration: 0.9,
+              ease: "expo.out"
+            });
+            break;
+          default:
+            gsap.from(item, {
+              opacity: 0,
+              scale: 0,
+              y: 250,
+              duration: 0.5,
+              ease: "back.out(1.7)"
+            });
+            break;
+        }
+      });
+    }
+  }, [showItems, isMoving]);
 
   return (
     <>
@@ -110,10 +159,11 @@ const App = () => {
           <img src="./wheel.png" alt="Wheel" />
         </div>
         <div className="wheel-items">
-          {!isMoving && // Only show items when the wheel is not moving
+          {!isMoving && showItems &&
             itemsToShow.map((item, index) => (
               <div
                 key={index}
+                ref={(el) => (itemsRefs.current[index] = el)}
                 className="wheel-item"
                 style={{
                   position: 'absolute',
@@ -130,7 +180,7 @@ const App = () => {
         </div>
       </div>
       <div className="row">
-        <p>Inertia: {inertia.toFixed(2)}</p>
+        <p>Inertia: {inertia}</p>
       </div>
     </>
   );
